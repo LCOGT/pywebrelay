@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+
+from setuptools import setup
+
+setup(
+    name = 'pywebrelay',
+    version = '1.0',
+    description = 'Python Control of ControlByWeb WebRelay',
+    url = 'https://github.com/LCOGT/pywebrelay/',
+    author = 'Ira W. Snyder',
+    author_email = 'isnyder@lco.global',
+    license = 'MIT',
+    packages = [
+        'webrelay',
+        'webrelay.device',
+    ],
+    install_requires = [
+        'beautifulsoup4==4.6.0',
+        'PyYAML==3.12',
+        'requests==2.18.4',
+        'netaddr==0.7.19',
+    ],
+    scripts = [
+        'bin/webrelay_info',
+        'bin/webrelay_fetch',
+        'bin/webrelay_diff',
+        'bin/webrelay_update',
+        'bin/webrelay_bootstrap',
+    ],
+    zip_safe = True
+)

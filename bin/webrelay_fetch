@@ -1,0 +1,61 @@
+#!/usr/bin/env python3
+
+'''
+Dump all configuration settings from a WebRelay device to stdout
+'''
+
+from __future__ import print_function
+
+from webrelay.io import dump_yaml
+
+from webrelay.utils import get_webrelay_device
+from webrelay.utils import detect_credentials
+from webrelay.utils import setup_logging
+
+import argparse
+import logging
+import sys
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Fetch information for a WebRelay',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    parser.add_argument('-u', '--username', type=str, help='Username (optional)', default='admin')
+    parser.add_argument('-p', '--password', type=str, help='Password (optional)', default='webrelay')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Run verbosely')
+    parser.add_argument('--password-file', type=str, help='File containing possible passwords (optional)')
+    parser.add_argument('hostname', type=str, help='WebRelay device hostname / IP address')
+    args = parser.parse_args()
+
+    # setup logging
+    if args.verbose:
+        setup_logging(logging.DEBUG)
+
+    # detect the correct credentials
+    creds = detect_credentials(
+        args.hostname,
+        args.username,
+        args.password,
+        args.password_file,
+    )
+
+    if creds is None:
+        print('ERROR: unable to connect and authenticate', file=sys.stderr)
+        sys.exit(1)
+
+    # connect to the device and fetch all configuration data
+    device = get_webrelay_device(creds)
+    device.loadFromDevice()
+    data = device.toDict()
+
+    # write the configuration data to stdout
+    print(dump_yaml(data))
+
+    sys.exit(0)
+
+if __name__ == '__main__':
+    main()
+
+# vim: set ts=4 sts=4 sw=4 et tw=120:

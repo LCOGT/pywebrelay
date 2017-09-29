@@ -1,0 +1,6 @@
+build
+env
+*.yml
+*.yaml
+*.pyc
+*.pyo

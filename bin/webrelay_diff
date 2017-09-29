@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+
+'''
+Display differences between a WebRelay device and a configuration file.
+'''
+
+from __future__ import print_function
+
+from webrelay.io import read_input_file
+
+from webrelay.utils import get_webrelay_device
+from webrelay.utils import detect_credentials
+from webrelay.utils import setup_logging
+
+import argparse
+import logging
+import sys
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Diff a WebRelay device and a configuration file',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    parser.add_argument('-c', '--configuration-file', type=str, help='Configuration filename', default='-')
+    parser.add_argument('-u', '--username', type=str, help='Username (optional)', default='admin')
+    parser.add_argument('-p', '--password', type=str, help='Password (optional)', default='webrelay')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Run verbosely')
+    parser.add_argument('--password-file', type=str, help='File containing possible passwords (optional)')
+    parser.add_argument('hostname', type=str, help='WebRelay device hostname / IP address')
+    args = parser.parse_args()
+
+    # setup logging
+    if args.verbose:
+        setup_logging(logging.DEBUG)
+
+    # detect the correct credentials
+    creds = detect_credentials(
+        args.hostname,
+        args.username,
+        args.password,
+        args.password_file,
+    )
+
+    if creds is None:
+        print('ERROR: unable to connect and authenticate', file=sys.stderr)
+        sys.exit(1)
+
+    # connect to the device and fetch all configuration data
+    device = get_webrelay_device(creds)
+    device.loadFromDevice()
+
+    # read the configuration file data
+    data = read_input_file(args.configuration_file)
+
+    # load updated values from the configuration file data
+    device.fromDict(data)
+
+    # print the differences to the screen
+    device.printDiff()
+
+    sys.exit(0)
+
+if __name__ == '__main__':
+    main()
+
+# vim: set ts=4 sts=4 sw=4 et tw=120:

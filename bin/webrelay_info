@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+
+'''
+Connect to a WebRelay device and detect:
+- Authentication Credentials
+- Model Number
+- Firmware Version
+- Serial Number
+'''
+
+from __future__ import print_function
+
+from webrelay.utils import fetch_version_information
+from webrelay.utils import detect_credentials
+from webrelay.utils import setup_logging
+
+import argparse
+import logging
+import sys
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Detect password and version information',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    parser.add_argument('-u', '--username', type=str, help='Username (optional)', default='admin')
+    parser.add_argument('-p', '--password', type=str, help='Password (optional)', default='webrelay')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Run verbosely')
+    parser.add_argument('--password-file', type=str, help='File containing possible passwords (optional)')
+    parser.add_argument('hostname', type=str, help='WebRelay device hostname / IP address')
+    args = parser.parse_args()
+
+    # setup logging
+    if args.verbose:
+        setup_logging(logging.DEBUG)
+
+    # detect the correct credentials
+    creds = detect_credentials(
+        args.hostname,
+        args.username,
+        args.password,
+        args.password_file,
+    )
+
+    if creds is None:
+        print('ERROR: unable to connect and authenticate', file=sys.stderr)
+        sys.exit(1)
+
+    # authenticated successfully, fetch version information
+    info = fetch_version_information(creds)
+
+    # print all information in a helpful format
+    print('Hostname:', creds.hostname)
+    print('Username:', creds.username)
+    print('Password:', creds.password)
+    print('Model Number:', info.modelNumber)
+    print('Firmware Version:', info.firmwareVersion)
+    print('Serial Number:', info.serialNumber)
+
+    sys.exit(0)
+
+if __name__ == '__main__':
+    main()
+
+# vim: set ts=4 sts=4 sw=4 et tw=120:

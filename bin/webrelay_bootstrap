@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+
+'''
+Bootstrap a WebRelay device from factory default settings
+- Configure a temporary IP address
+- Program updated settings
+'''
+
+from __future__ import print_function
+
+from webrelay.io import read_input_file
+
+from webrelay.utils import get_webrelay_device
+from webrelay.utils import detect_credentials
+from webrelay.utils import setup_logging
+
+import subprocess
+import argparse
+import logging
+import netaddr
+import sys
+
+def confirm_with_user():
+    # newline at the beginning of confirmation
+    print()
+
+    # loop until the user gives us something sensible
+    while True:
+        response = input('Type "y" to confirm and write changes to the device: ')
+        response = response.lower().strip()
+
+        if response in ('y', 'ye', 'yes'):
+            return True
+
+        if response in ('', 'n', 'no'):
+            print('Understood, I will exit now. Goodbye.')
+            sys.exit(0)
+
+        print('I was unable to understand your response, please try again')
+
+def arpspoof(ipaddress, macaddress, sudo, verbose=False):
+    cmd = [ '/sbin/arp', '-s', ipaddress, macaddress, 'temp', ]
+
+    output = subprocess.DEVNULL
+    if verbose:
+        output = None
+
+    # use sudo for this command
+    if sudo:
+        cmd.insert(0, '/usr/bin/sudo')
+
+    try:
+        print('Step 1: ARP spoof device: {}'.format(' '.join(cmd)))
+        subprocess.check_call(cmd)
+    except subprocess.CalledProcessError as ex:
+        print('ERROR: ARP spoof failed ({})'.format(str(ex)))
+        sys.exit(1)
+
+    cmd = [ '/bin/ping', '-c', '4', '-s', '102', ipaddress, ]
+
+    try:
+        print('Step 2: ping device: {}'.format(' '.join(cmd)))
+        subprocess.check_call(cmd, stdout=output, stderr=output)
+    except subprocess.CalledProcessError as ex:
+        print('ERROR: ping failed ({})'.format(str(ex)))
+        sys.exit(1)
+
+    print('ARP spoof succeeded, WebRelay is now available at: {}'.format(ipaddress))
+
+def macaddress(macaddress):
+    try:
+        mac = netaddr.EUI(macaddress)
+        mac.dialect = netaddr.mac_unix_expanded
+        return str(mac)
+    except netaddr.AddrFormatError:
+        raise argparse.ArgumentTypeError('MAC address format not recognized')
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Bootstrap a WebRelay device from Factory Reset conditions',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+
+    parser.add_argument('-c', '--configuration-file', type=str, help='Configuration filename', default='-')
+    parser.add_argument('-u', '--username', type=str, help='Username (optional)', default='admin')
+    parser.add_argument('-p', '--password', type=str, help='Password (optional)', default='webrelay')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Run verbosely')
+    parser.add_argument('-y', '--yes', action='store_true', help='Assume Yes for all answers')
+    parser.add_argument('--password-file', type=str, help='File containing possible passwords (optional)')
+    parser.add_argument('--sudo', action='store_true', help='Prefix privileged commands with "sudo"')
+    parser.add_argument('--macaddress', type=macaddress, help='WebRelay device MAC address (serial number)', required=True)
+    parser.add_argument('hostname', type=str, help='WebRelay device hostname / IP address')
+    args = parser.parse_args()
+
+    # setup logging
+    if args.verbose:
+        setup_logging(logging.DEBUG)
+
+    # arp spoof the device
+    arpspoof(args.hostname, args.macaddress, args.sudo, args.verbose)
+
+    # detect the correct credentials
+    creds = detect_credentials(
+        args.hostname,
+        args.username,
+        args.password,
+        args.password_file,
+    )
+
+    if creds is None:
+        print('ERROR: unable to connect and authenticate', file=sys.stderr)
+        sys.exit(1)
+
+    # connect to the device and fetch all configuration data
+    print('Reading existing configuration from device...')
+    device = get_webrelay_device(creds)
+    device.loadFromDevice()
+    data = device.toDict()
+
+    # read the configuration file data
+    print('Reading new configuration from file: {}'.format(args.configuration_file))
+    data = read_input_file(args.configuration_file)
+
+    # load updated values from the configuration file data
+    device.fromDict(data)
+
+    # no updates needed
+    if not device.needsUpdate():
+        print('No differences between the WebRelay device and the configuration file!')
+        sys.exit(0)
+
+    # print the differences to the screen
+    print()
+    print('Here are the differences that will be applied:')
+    print()
+    device.printDiff()
+
+    # confirm with user that this is ok
+    if not args.yes:
+        confirm_with_user()
+
+    # write the changes to the device
+    print()
+    print('Writing new settings to the WebRelay device ...')
+    device.writeToDevice()
+    print('Finished!')
+
+    sys.exit(0)
+
+if __name__ == '__main__':
+    main()
+
+# vim: set ts=4 sts=4 sw=4 et tw=120:
