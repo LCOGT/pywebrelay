@@ -18,7 +18,7 @@ setup(
         'beautifulsoup4==4.7.1',
         'PyYAML==5.1',
         'requests==2.22.0',
-        'netaddr==0.7.19',
+        'netaddr==0.7.20',
     ],
     scripts = [
         'bin/webrelay_info',
