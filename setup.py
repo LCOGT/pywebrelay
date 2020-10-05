@@ -15,7 +15,7 @@ setup(
         'webrelay.device',
     ],
     install_requires = [
-        'beautifulsoup4==4.7.1',
+        'beautifulsoup4==4.9.3',
         'PyYAML==5.1',
         'requests==2.22.0',
         'netaddr==0.7.19',
