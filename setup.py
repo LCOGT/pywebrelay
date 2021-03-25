@@ -16,7 +16,7 @@ setup(
     ],
     install_requires = [
         'beautifulsoup4==4.7.1',
-        'PyYAML==5.1',
+        'PyYAML==5.4',
         'requests==2.22.0',
         'netaddr==0.7.19',
     ],
